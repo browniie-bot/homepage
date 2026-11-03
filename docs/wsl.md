@@ -10,7 +10,7 @@
 ## 全体フロー
 
 1. **Windows**: クリーンな Ubuntu WSL を作成
-2. **WSL (Ubuntu)**: 必要ツール導入 → リポジトリ取得 → ビルド → 起動スクリプト配置
+2. **WSL (Ubuntu)**: 必要ツール導入 → リポジトリ取得 + ビルド（`fetch-app.sh`）→ 起動スクリプトの確認
 3. **Windows**: `wsl --export` で tar 化
 4. **WSL**: tar を gzip 圧縮 + sha256 算出
 5. **Windows**: `gh release create` で GitHub Release にアップロード
@@ -212,60 +212,35 @@ sudo find /var/log -type f -exec cp /dev/null {} \;
 
 ---
 
-## 5. リポジトリ取得 (WSL)
+## 5. リポジトリ取得 & ビルド (WSL)
+
+取得・不要ファイルの除去・`.env` 作成・依存インストール・`setup` のビルド・prune は
+[setup/scripts/fetch-app.sh](../setup/scripts/fetch-app.sh) に集約している。イメージ作成では `--fresh --dist` で実行する。
 
 ```bash
-rm -rf ~/homepage
-mkdir -p ~/homepage
-cd ~/homepage
-curl -L https://github.com/okamoto53515606/homepage/archive/refs/heads/main.tar.gz \
-  | tar -xz --strip-components=1
+# why: まだリポジトリが手元に無いため、スクリプトだけ先に取得して実行する
+curl -fsSL -o /tmp/fetch-app.sh \
+  https://raw.githubusercontent.com/okamoto53515606/homepage/main/setup/scripts/fetch-app.sh
 
-# why: 配布イメージサイズ削減 & ユーザーが触る必要のないファイルを除く。
-#      docs/ は利用者向けの手順書（更新方法・WSL+VSCode での開発方法）を配るため残す。
-rm -rf prompt_history test scripts
-
-cp env_template.txt .env
+# --fresh: .env を env_template.txt から作る（初回セットアップ用）
+# --dist : setup を npm install → next build し、devDependencies を prune --production する
+bash /tmp/fetch-app.sh --dir "$HOME/homepage" --fresh --dist
 ```
 
-> **注意:** 初回のイメージ作成だけはこの手動コマンドが必要（取得スクリプトはリポジトリの中にあるため、まだ手元に無い）。
-> 2 回目以降は [setup/scripts/fetch-app.sh](../setup/scripts/fetch-app.sh) が同じ処理を行う。
-> `bash ~/homepage/setup/scripts/fetch-app.sh --fresh --dist` で §5（取得・不要ファイル除去・`.env` 作成）と §6（依存インストール・ビルド・prune）を 1 コマンドで実行できる。
-> `--fresh` は `.env` を `env_template.txt` から作り直すため、**AWS キー等を入力済みの環境では使わない**（その場合は `--update`）。
-
----
-
-## 6. 依存インストール & ビルド (WSL)
-
-> **why:** 配布後の初回起動を高速化するため、`npm install` と setup の `next build` を配布側で済ませて `node_modules` / `.next` ごとイメージに固める。  
+> **why:** 配布後の初回起動を高速化するため、`npm install` と setup の `next build` を配布側で済ませて `node_modules` / `.next` ごとイメージに固める。
 > ルート (`~/homepage`) は CDK 用依存だけが必要 (`aws-cdk-lib`, `@types/node` 等)。Next.js 本体の build はランタイムでは Lambda コンテナビルド経由で行うため不要。
 
-```bash
-# ルート: CDK 用依存のみ
-cd ~/homepage
-rm -rf node_modules .next
-npm install
+> **注意:** `--fresh` は `.env` を `env_template.txt` から作り直す。AWS キー等を入力済みの環境では使わない（既存環境の更新は `--update --build`）。
 
-# setup: 依存 + Next.js プロダクションビルド
-cd ~/homepage/setup
-rm -rf node_modules .next
-npm install
-npm run build
-
-# why: ビルド後は tailwindcss/postcss 等の devDependencies が不要になる。
-#      npm prune --production で node_modules から削除し、イメージサイズを削減する。
-npm prune --production
-```
-
-> **重要:** セットアップ画面のヘッダーに出るバージョン（例: `v2.1.1`）は、この `npm run build` の時点で
+> **重要:** セットアップ画面のヘッダーに出るバージョン（例: `v2.1.1`）は、この `next build` の時点で
 > **リポジトリ直下の `package.json` の version を読み取って焼き込んだ値**（`NEXT_PUBLIC_APP_VERSION`）。
 > つまり「そのイメージで実際に入る本体のバージョン」が表示される。
-> 逆に言うと、**バージョンを上げたら必ず `setup` を再ビルドしてから export する** こと。
+> 逆に言うと、**バージョンを上げたら必ず setup を再ビルドしてから export する** こと。
 > build 済みの `.next` を使い回すと、画面のバージョン表記だけが古いまま残る。
 
 ---
 
-## 7. 起動スクリプト (WSL)
+## 6. 起動スクリプト (WSL)
 
 `setup/start.sh` はリポジトリに含まれているため、生成作業は不要。実行ビットだけ確認する。
 
@@ -284,7 +259,7 @@ exit
 
 ---
 
-## 8. 起動テスト (Windows)
+## 7. 起動テスト (Windows)
 
 PowerShell から:
 
@@ -296,7 +271,7 @@ wsl -d Ubuntu -u ubuntu -- bash -i /home/ubuntu/homepage/setup/start.sh
 
 ---
 
-## 9. WSL イメージのエクスポート (Windows)
+## 8. WSL イメージのエクスポート (Windows)
 
 ```powershell
 d:
@@ -308,7 +283,7 @@ wsl --export Ubuntu homepage-v2-latest.tar
 
 ---
 
-## 10. 圧縮 + ハッシュ算出 (WSL)
+## 9. 圧縮 + ハッシュ算出 (WSL)
 
 ```bash
 # why: pigz は gzip のマルチコア版。出力は gzip 完全互換で、
@@ -326,7 +301,7 @@ ls -l --si
 
 ---
 
-## 11. GitHub Release 作成 (Windows)
+## 10. GitHub Release 作成 (Windows)
 
 初回のみ `gh` CLI 導入と認証:
 

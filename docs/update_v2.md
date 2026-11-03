@@ -46,8 +46,6 @@
 
 配布イメージには `docs/` が入っているため、この手順書は `~/homepage/docs/update_v2.md` でも読める。
 
-`setup/scripts/fetch-app.sh --update --build` が「ダウンロード → 不要ファイルの除去 → 旧ツリーの退避 → `.env` と `setup/setup-state.json` の引き継ぎ → 再ビルド」まで行う。
-
 ```bash
 cd ~/homepage
 bash setup/scripts/fetch-app.sh --update --build
@@ -61,48 +59,11 @@ curl -fsSL -o /tmp/fetch-app.sh \
 bash /tmp/fetch-app.sh --dir "$HOME/homepage" --update --build
 ```
 
-確認プロンプトを出さずに流す場合は `--yes` を付ける。特定のタグに固定したい場合は `--ref v2.1.1`。
-
-スクリプトが内部でやっていること（手で同じことをしたい場合）:
-
-```bash
-# 0) 事前にバージョンを控える（更新後の確認用）
-curl -s localhost:3001 | grep -o 'v2\.[0-9.]*' | head -1
-
-# 1) 引き継ぐものを退避（.env と進捗）
-cp ~/homepage/.env ~/env.backup
-cp ~/homepage/setup/setup-state.json ~/setup-state.backup.json
-
-# 2) 旧ツリーは残したまま、新しいツリーを展開
-#    why: 丸ごと消さず別名で残すことで、切り戻しが「ディレクトリ名を戻すだけ」で済む
-mv ~/homepage ~/homepage.old
-mkdir -p ~/homepage
-cd ~/homepage
-curl -L https://github.com/okamoto53515606/homepage/archive/refs/heads/main.tar.gz \
-  | tar -xz --strip-components=1
-
-# why: 配布イメージサイズ削減のため、利用者が触る必要のないファイルを除く
-#      （docs/ は配布物に含めており、この手順書も ~/homepage/docs/update_v2.md で読める）
-rm -rf prompt_history test scripts
-
-# 3) 退避したものを戻す
-cp ~/env.backup .env
-cp ~/setup-state.backup.json setup/setup-state.json
-
-# 4) 依存を入れ直す（Node は 24 系であること）
-source ~/.bashrc && nvm use 24 && node -v
-npm install
-cd ~/homepage/setup
-npm install
-npm run build
-
-# 5) 動作確認できたら旧ツリーを削除
-rm -rf ~/homepage.old ~/env.backup ~/setup-state.backup.json
-```
-
-> **注意:** 手順 4 を飛ばすと、`/ops` など新しい画面が表示されない（`.next` が古いまま）。`npm install` が `Cannot read properties of null (reading 'edgesOut')` で落ちる場合は `npx -y npm@11 install` を使う。
->
-> **注意:** `rm -rf ~/homepage` を先に実行しないこと。`.env` と `setup/setup-state.json` が消え、AWS 認証・独自ドメイン・セットアップ進捗を失う。
+- 確認プロンプトを出さずに流す場合は `--yes`、タグを固定したい場合は `--ref v2.1.1`
+- 中身は [setup/scripts/fetch-app.sh](../setup/scripts/fetch-app.sh) を参照（ダウンロード → 不要ファイル除去 → 旧ツリー退避 → `.env` / `setup-state.json` の引き継ぎ → `npm install` → `setup` の `next build`）
+- `--build` を外すと `.next` が古いままになり、`/ops` など新しい画面が出ない
+- `npm install` が `Cannot read properties of null (reading 'edgesOut')` で落ちる場合は `npx -y npm@11 install` を使う
+- **`rm -rf ~/homepage` を先に実行しないこと。** `.env` と `setup/setup-state.json` が消え、AWS 認証・独自ドメイン・セットアップ進捗を失う（スクリプトは旧ツリーを退避してから差し替える）
 
 ### 3-2 新しい WSL イメージを再取り込みする（非推奨）
 
@@ -150,4 +111,4 @@ rm -rf ~/homepage.old ~/env.backup ~/setup-state.backup.json
 5. 公開サイトを開き直す。古い画面が残る場合は「CDN キャッシュ削除」
 ```
 
-> **配布側の確認:** リリース用イメージを作るときは `setup` を**再ビルドしてから**エクスポートする。`docs/wsl.md` §6 の注意どおり、ビルド済み `.next` を使い回すと画面のバージョン表記だけが古いまま配布される。
+> **配布側の確認:** リリース用イメージを作るときは `setup` を**再ビルドしてから**エクスポートする。`docs/wsl.md` §5 の注意どおり、ビルド済み `.next` を使い回すと画面のバージョン表記だけが古いまま配布される。
