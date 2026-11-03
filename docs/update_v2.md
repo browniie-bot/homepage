@@ -53,6 +53,14 @@ cd ~/homepage
 bash setup/scripts/fetch-app.sh --update --build
 ```
 
+配布済みイメージに `setup/scripts/fetch-app.sh` が無い場合（v2.1.1 以前のイメージ）は、GitHub から取得して実行する。スクリプトの位置から対象を決められないため `--dir` で明示する。
+
+```bash
+curl -fsSL -o /tmp/fetch-app.sh \
+  https://raw.githubusercontent.com/okamoto53515606/homepage/main/setup/scripts/fetch-app.sh
+bash /tmp/fetch-app.sh --dir "$HOME/homepage" --update --build
+```
+
 確認プロンプトを出さずに流す場合は `--yes` を付ける。特定のタグに固定したい場合は `--ref v2.1.1`。
 
 スクリプトが内部でやっていること（手で同じことをしたい場合）:

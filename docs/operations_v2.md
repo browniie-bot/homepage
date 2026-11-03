@@ -25,7 +25,7 @@
 
 ## ops メニュー（SDK 直接書込み）
 
-`/setup/ops` で実行。CDK を経由しないため独自ドメイン (`Aliases` /
+セットアップ画面の「運用メニュー」（`http://localhost:3001/ops`）で実行。CDK を経由しないため独自ドメイン (`Aliases` /
 `ViewerCertificate` / `CLOUDFRONT_DOMAIN`) に**一切触らない**。
 
 - **アプリコード更新**: `docker build` → ECR push → `UpdateFunctionCode`
