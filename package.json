@@ -1,6 +1,6 @@
 {
   "name": "homepage-v2",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 9002",
@@ -37,6 +37,7 @@
   "overrides": {
     "fast-uri": "^4.2.3",
     "js-yaml": "^4.3.2",
+    "minimatch": "^11.0.4",
     "nanoid": "^3.3.18",
     "postcss": "^8.5.23",
     "qs": "^6.14.2",
