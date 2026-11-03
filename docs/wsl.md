@@ -218,13 +218,18 @@ sudo find /var/log -type f -exec cp /dev/null {} \;
 [setup/scripts/fetch-app.sh](../setup/scripts/fetch-app.sh) に集約している。イメージ作成では `--fresh --dist` で実行する。
 
 ```bash
-# why: まだリポジトリが手元に無いため、スクリプトだけ先に取得して実行する
-curl -fsSL -o /tmp/fetch-app.sh \
-  https://raw.githubusercontent.com/okamoto53515606/homepage/main/setup/scripts/fetch-app.sh
+# why: 手元のスクリプトに依存すると、修正済みの挙動（退避・引き継ぎ）が効かない。
+#      必ず main から最新を取得し、取得に失敗したらそこで止める（古いもので続行しない）。
+(
+  set -euo pipefail
+  curl -fsSL --retry 3 -o /tmp/fetch-app.sh \
+    https://raw.githubusercontent.com/okamoto53515606/homepage/main/setup/scripts/fetch-app.sh
+  bash -n /tmp/fetch-app.sh   # 壊れたファイル/別物を掴んでいないか構文チェック
 
-# --fresh: .env を env_template.txt から作る（初回セットアップ用）
-# --dist : setup を npm install → next build し、devDependencies を prune --production する
-bash /tmp/fetch-app.sh --dir "$HOME/homepage" --fresh --dist
+  # --fresh: .env を env_template.txt から作る（初回セットアップ用）
+  # --dist : setup を npm install → next build し、devDependencies を prune --production する
+  bash /tmp/fetch-app.sh --dir "$HOME/homepage" --fresh --dist
+)
 ```
 
 > **why:** 配布後の初回起動を高速化するため、`npm install` と setup の `next build` を配布側で済ませて `node_modules` / `.next` ごとイメージに固める。

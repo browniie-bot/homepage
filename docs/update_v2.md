@@ -48,19 +48,20 @@
 
 配布イメージには `docs/` が入っているため、この手順書は `~/homepage/docs/update_v2.md` でも読める。
 
-```bash
-cd ~/homepage
-bash setup/scripts/fetch-app.sh --update --build
-```
-
-配布済みイメージに `setup/scripts/fetch-app.sh` が無い場合（v2.1.1 以前のイメージ）は、GitHub から取得して実行する。スクリプトの位置から対象を決められないため `--dir` で明示する。
+手元のスクリプトが古いと、修正済みの挙動（旧ツリーの退避・`.env` の引き継ぎ）が効かない。そのため**毎回 GitHub から最新を取得してから実行する**。取得に失敗した場合はそこで停止し、古いスクリプトでは続行しない。
 
 ```bash
-curl -fsSL -o /tmp/fetch-app.sh \
-  https://raw.githubusercontent.com/okamoto53515606/homepage/main/setup/scripts/fetch-app.sh
-bash /tmp/fetch-app.sh --dir "$HOME/homepage" --update --build
+(
+  set -euo pipefail
+  curl -fsSL --retry 3 -o /tmp/fetch-app.sh \
+    https://raw.githubusercontent.com/okamoto53515606/homepage/main/setup/scripts/fetch-app.sh
+  bash -n /tmp/fetch-app.sh   # 壊れたファイル/別物を掴んでいないか構文チェック
+  bash /tmp/fetch-app.sh --dir "$HOME/homepage" --update --build
+)
 ```
 
+- `( ... )` はサブシェルなので、途中で失敗しても WSL のシェル自体は閉じない（終了コードは `echo $?` で確認できる）
+- `--dir` は必須。スクリプトが `/tmp` にあるため、対象を自分の位置から決められない
 - 確認プロンプトを出さずに流す場合は `--yes`、タグを固定したい場合は `--ref v2.1.1`
 - 中身は [setup/scripts/fetch-app.sh](../setup/scripts/fetch-app.sh) を参照（ダウンロード → 不要ファイル除去 → 旧ツリー退避 → `.env` / `setup-state.json` の引き継ぎ → `npm install` → `setup` の `next build`）
 - `--build` を外すと `.next` が古いままになり、`/ops` など新しい画面が出ない
@@ -76,7 +77,7 @@ bash /tmp/fetch-app.sh --dir "$HOME/homepage" --update --build
 ## 4. 更新の反映と確認
 
 1. セットアップ画面（`http://localhost:3001`）を開き直し、**ヘッダのバージョン表記が新しい版になっている**ことを確認
-   → 古いままなら手順 3-1 の 4（`setup` の `npm run build`）が未実行
+   → 古いままなら手順 3-1 の `--build` が未実行（`.next` が古いまま）
 2. 変更内容に応じて §2 の経路を実行
    - コード変更あり → `/ops` →「アプリコード更新」
    - 構造変更あり → `setup1b` →「デプロイ」
