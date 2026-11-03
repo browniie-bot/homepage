@@ -173,3 +173,18 @@ npx cdk deploy HomepageMonitoringStack HomepageMonitoringEdgeStack \
 | Lambda `CLOUDFRONT_DOMAIN` | 両 Lambda の env | setup2b Phase E（ドメイン書換）のみ |
 | Cognito Callback URL | UserPoolClient | setup2b Phase E のみ |
 | WebACLId | CloudFront Distribution | ops（WAF 構成変更）のみ |
+
+### `npx cdk deploy` を単体で叩かない
+
+**why:** CDK アプリは `.env` を読まない（例外は監視スタックの `ALARM_EMAIL` を `.env` から拾う処理のみ）。`setup1b` は `.env` の値を `--context` として明示的に渡すが、素の `npx cdk deploy HomepageDynamoDbStack` は **context が空のまま適用される**（`cdk/lib/infra-stack.ts` は未指定を `''` として解釈する）。結果として、次の設定が「削除」される。
+
+| 失われるもの | 空になる context | 症状 |
+|---|---|---|
+| 独自ドメイン | `customDomain` / `customDomainCertArn` | CloudFront の `Aliases` / `ViewerCertificate` が外れ、独自ドメインで開けなくなる（default cf ドメインに戻る） |
+| WAF | `wafAclArn` | WebACL の紐付けが外れ、IP 制限 / CAPTCHA が無効になる |
+| ログイン | `cognitoUserPoolId` / `cognitoClientId` / `cognitoDomain` | Lambda の環境変数が空文字で上書きされ、管理画面・サイトのログインが通らない |
+| 既存セッション | `jwtSecret` | 署名検証が通らず、ログイン中のセッションがすべて無効になる |
+
+**復旧:** `setup1b` を再実行する（`.env` に `COGNITO_*` / `JWT_SECRET` / `CUSTOM_DOMAIN` / `CUSTOM_DOMAIN_CERT_ARN` が残っていれば元に戻る）。
+
+また `.env` を `source` してから実行すると認証情報だけは入ってしまい、**「認証は通るが context が空」という一番気づきにくい状態**でデプロイが完走する。手元で CLI を使う必要がある場合は、`setup1b` と同じ `--context` を必ず渡すこと。

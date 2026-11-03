@@ -28,6 +28,8 @@
 | **監視・通知先だけ**（`ALARM_EMAIL`） | `setup1b` →「アラート通知先を保存」 | 数分 | `HomepageMonitoringStack` / `HomepageMonitoringEdgeStack` のみ |
 | **構造変更**（DynamoDB の GSI 追加・新規 Lambda・IAM・CDK スタック修正） | `setup1b` →「デプロイ」 | 30〜60 分 | CloudFront / DynamoDB / IAM / Lambda / 監視スタック全部 |
 
+> **`npx cdk deploy` を単体で実行しないこと。** CDK は `.env` を読まないため、`--context` が空のまま適用され、独自ドメイン・WAF・Cognito の設定が空で上書きされる（症状と復旧は `docs/operations_v2.md` の「`npx cdk deploy` を単体で叩かない」を参照）。構造変更は必ず画面の `setup1b` から行う。
+
 ### コード修正で `setup1b` を使わない理由
 
 - `setup1b` は Docker ビルドを含むため 30〜60 分かかり、CloudFront・DynamoDB・IAM まで作り直し対象になる。コード 1 行の修正には過剰で、影響範囲も広い。
