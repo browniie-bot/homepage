@@ -140,6 +140,13 @@ if [[ ! -f "${TMP}/new/package.json" || ! -d "${TMP}/new/setup" ]]; then
   exit 1
 fi
 
+# why: fresh は新しい .env をテンプレートから作るため、テンプレートが無いまま
+#      差し替えると「.env が存在しないツリー」ができてしまう。差し替え前に弾く。
+if [[ "${MODE}" == "fresh" && ! -f "${TMP}/new/env_template.txt" ]]; then
+  echo "[エラー] env_template.txt がアーカイブにありません（.env を作れないため中止）" >&2
+  exit 1
+fi
+
 # why: 配布イメージサイズ削減のため、利用者が触る必要のないファイルを除く。
 #      docs/ は「更新方法」「WSL + VSCode での開発方法」を配布物内で読めるようにするため残す。
 rm -rf "${TMP}/new/prompt_history" "${TMP}/new/test" "${TMP}/new/scripts"
