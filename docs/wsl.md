@@ -227,6 +227,11 @@ rm -rf docs prompt_history test scripts
 cp env_template.txt .env
 ```
 
+> **注意:** 初回のイメージ作成だけはこの手動コマンドが必要（取得スクリプトはリポジトリの中にあるため、まだ手元に無い）。
+> 2 回目以降は [setup/scripts/fetch-app.sh](../setup/scripts/fetch-app.sh) が同じ処理を行う。
+> `bash ~/homepage/setup/scripts/fetch-app.sh --fresh --dist` で §5（取得・不要ファイル除去・`.env` 作成）と §7（依存インストール・ビルド・prune）を 1 コマンドで実行できる。
+> `--fresh` は `.env` を `env_template.txt` から作り直すため、**AWS キー等を入力済みの環境では使わない**（その場合は `--update`）。
+
 ---
 
 ## 6. 環境チェック (WSL)
@@ -374,6 +379,14 @@ gh release create v2.1.1 `
 - インストーラ: <https://github.com/okamoto53515606/homepage-v2-installer>
 
 セットアップ画面が起動したら、`setup0` 画面で AWS キーを登録するところから本セットアップが始まる。詳細な操作手順はインストーラ側の README を参照。
+
+---
+
+## 配布後のアップデート（利用者向け）
+
+> **why:** 配布済みイメージの利用者は、CDK コマンドではなくセットアップ画面のボタンで更新する。どのボタンで何が反映されるか（コードのみ＝`/ops`「アプリコード更新」、構造変更＝`setup1b`）と、差し替え時に消してはいけないファイル（`.env` / `setup/setup-state.json`）を利用者向けに明文化しておく必要がある。
+
+手順は [update_v2.md](./update_v2.md) に集約している。リリースノートには同ドキュメントの §6 の型で「押すボタン」だけを書く。
 
 ---
 
