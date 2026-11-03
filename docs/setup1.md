@@ -25,23 +25,15 @@
 
 > **インストール先（参考）:** `%LOCALAPPDATA%\HomepageV2`（`app\` 実行ファイル / `wsl\` VHDX / `cache\` DL 中の一時 / `logs\` ログ）。WSL ディストリ名は `homepage-v2-latest`。
 
-### 1. インストール
+### インストールと起動
 
-1. [Releases ページ](https://github.com/okamoto53515606/homepage-v2-installer/releases/latest) から `homepage-v2-installer-setup.zip` をダウンロード。
-2. zipを解凍し、exeファイルをダブルクリックで起動。
-3. **Windows SmartScreen** が「認識されないアプリ」と警告したら → **「詳細情報」** → **「実行」** をクリック。
-4. ウィザードに従って「次へ」を進める。
-   - 初回は WSL2 イメージ（約 1.5 GB / gzip 圧縮済み）をダウンロード（回線速度により数分〜数十分）。
-   - SHA256 検証後、`wsl --import` で取り込み。
-5. インストール完了と同時にタスクトレイにアイコンが常駐。
+インストーラのダウンロードから `http://localhost:3001/setup0` が開くまでの手順は、**スクリーンショット付きで [installer-setup.md](https://github.com/okamoto53515606/homepage-v2-installer/blob/main/docs/installer-setup.md) にまとめています**（配布物 `homepage-v2-installer-setup.zip` の入手先も同ドキュメントの手順 1）。
 
-### 2. 起動 / 停止
+- 所要時間: ダウンロードを含めて 10〜30 分（回線速度により変動）
+- WSL2 イメージは約 1.5 GB。SHA256 検証のうえ `wsl --import` される（ディストリ名 `homepage-v2-latest`）
+- インストール完了と同時にタスクトレイに常駐し、トレイの「起動 (npm run dev)」でブラウザが開く
 
-1. タスクトレイの `homepage-v2-installer` アイコンを **右クリック**。
-2. **「起動 (npm run dev)」** を選択。
-3. 数十秒待つと自動でブラウザが開き、セットアップ画面（`http://localhost:3001`）が表示される。
-
-セットアップ画面が表示されたら、以下の Step 0 から作業を始めてください。停止・アンインストール・トラブルシューティング等のインストーラ自体の操作は [homepage-v2-installer リポジトリ](https://github.com/okamoto53515606/homepage-v2-installer) を参照してください。
+セットアップ画面（`http://localhost:3001/setup0`）が表示されたら、以下の Step 0 から作業を始めてください。停止・アンインストール・トラブルシューティング等のインストーラ自体の操作は [homepage-v2-installer リポジトリ](https://github.com/okamoto53515606/homepage-v2-installer) を参照してください。
 
 ---
 

@@ -15,7 +15,7 @@
 | `~/homepage/node_modules` | `npx cdk` 実行用の依存 | 差し替え後に再インストール |
 | `~/homepage/setup/node_modules`・`setup/.next` | セットアップ画面本体（`next start` で配信） | 差し替え後に**再ビルド必須** |
 
-理由: `setup` は `next start` で配信しているため、`.next` を作り直さないと**画面のコードが古いまま**になる。またセットアップ画面ヘッダの `v2.1.1` は `NEXT_PUBLIC_APP_VERSION`（ビルド時にリポジトリ直下の `package.json` から焼き込み）なので、再ビルドを忘れると「新しいファイルを入れたのにバージョン表記だけ古い」状態になる。
+理由: `setup` は `next start` で配信しているため、`.next` を作り直さないと**画面のコードが古いまま**になる。またセットアップ画面ヘッダの `vX.Y.Z` は `NEXT_PUBLIC_APP_VERSION`（ビルド時にリポジトリ直下の `package.json` から焼き込み）なので、再ビルドを忘れると「新しいファイルを入れたのにバージョン表記だけ古い」状態になる。
 
 ---
 
@@ -44,7 +44,11 @@
 
 ## 3. ファイルを新しくする手順
 
-### 3-1 WSL 内で差し替える（推奨）
+> **インストーラで導入済みなら、まずタスクトレイの「アプリを更新...」を使う。** WSL 内のアプリ（`~/homepage`）の差し替えは、`.env` / `setup/setup-state.json` の引き継ぎと旧ツリーの退避（`~/homepage.old-<timestamp>`）までインストーラが自動で行う（5〜20 分）。スクリーンショット付きの手順は [installer-update.md](https://github.com/okamoto53515606/homepage-v2-installer/blob/main/docs/installer-update.md) を参照。
+>
+> 以下の 3-1 は、インストーラを使わずに手動で差し替える場合と、自動更新が失敗したときの切り分けに使う。
+
+### 3-1 WSL 内で差し替える（インストーラを使わない場合）
 
 配布イメージには `docs/` が入っているため、この手順書は `~/homepage/docs/update_v2.md` でも読める。
 
@@ -106,7 +110,8 @@
 ```markdown
 ### アップデート手順（既存ユーザー）
 
-1. WSL 内でファイルを差し替える（`docs/update_v2.md` 3-1）
+1. タスクトレイの「アプリを更新...」で WSL 内のアプリを更新する
+   （手動で差し替える場合は `docs/update_v2.md` 3-1）
 2. セットアップ画面を開き直し、ヘッダが vX.Y.Z になっていることを確認
 3. セットアップ画面 →「運用メニュー」→「アプリコード更新」を実行
 4. 今回は <構造変更の有無> のため、`setup1b` の「デプロイ」も実行する
@@ -114,4 +119,6 @@
 5. 公開サイトを開き直す。古い画面が残る場合は「CDN キャッシュ削除」
 ```
 
-> **配布側の確認:** リリース用イメージを作るときは `setup` を**再ビルドしてから**エクスポートする。`docs/wsl.md` §5 の注意どおり、ビルド済み `.next` を使い回すと画面のバージョン表記だけが古いまま配布される。
+> **利用者向けのスクリーンショット付き手順:** [installer-update.md](https://github.com/okamoto53515606/homepage-v2-installer/blob/main/docs/installer-update.md)（トレイ更新）／[installer-setup.md](https://github.com/okamoto53515606/homepage-v2-installer/blob/main/docs/installer-setup.md)（新規インストール）。リリースノートからはこの 2 本にリンクすれば、画像を貼らずに済む。
+
+> **配布側の確認:** リリース用イメージは `homepage-v2-installer` の `tools/build-wsl-image.ps1` が `setup` の再ビルドまで含めて作る（[docs/wsl.md](./wsl.md)）。画面のバージョン表記はビルド時に root `package.json` から焼き込むため、版を上げて push していないとスクリプトが**ビルド開始前**に止まる。
