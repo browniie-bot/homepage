@@ -140,8 +140,9 @@ if [[ ! -f "${TMP}/new/package.json" || ! -d "${TMP}/new/setup" ]]; then
   exit 1
 fi
 
-# why: 配布イメージと同じ構成に揃える（利用者が触る必要のないファイルを除外）
-rm -rf "${TMP}/new/docs" "${TMP}/new/prompt_history" "${TMP}/new/test" "${TMP}/new/scripts"
+# why: 配布イメージサイズ削減のため、利用者が触る必要のないファイルを除く。
+#      docs/ は「更新方法」「WSL + VSCode での開発方法」を配布物内で読めるようにするため残す。
+rm -rf "${TMP}/new/prompt_history" "${TMP}/new/test" "${TMP}/new/scripts"
 
 if [[ "${MODE}" == "update" ]]; then
   echo "[3/5] 引き継ぐファイルを退避"

@@ -44,7 +44,9 @@
 
 ### 3-1 WSL 内で差し替える（推奨）
 
-`setup/scripts/fetch-app.sh` が「ダウンロード → 不要ファイルの除去 → 旧ツリーの退避 → `.env` と `setup/setup-state.json` の引き継ぎ → 再ビルド」まで行う。
+配布イメージには `docs/` が入っているため、この手順書は `~/homepage/docs/update_v2.md` でも読める。
+
+`setup/scripts/fetch-app.sh --update --build` が「ダウンロード → 不要ファイルの除去 → 旧ツリーの退避 → `.env` と `setup/setup-state.json` の引き継ぎ → 再ビルド」まで行う。
 
 ```bash
 cd ~/homepage
@@ -71,8 +73,9 @@ cd ~/homepage
 curl -L https://github.com/okamoto53515606/homepage/archive/refs/heads/main.tar.gz \
   | tar -xz --strip-components=1
 
-# why: 配布イメージと同じ構成に揃える（利用者が触らないファイルを除外）
-rm -rf docs prompt_history test scripts
+# why: 配布イメージサイズ削減のため、利用者が触る必要のないファイルを除く
+#      （docs/ は配布物に含めており、この手順書も ~/homepage/docs/update_v2.md で読める）
+rm -rf prompt_history test scripts
 
 # 3) 退避したものを戻す
 cp ~/env.backup .env
@@ -139,4 +142,4 @@ rm -rf ~/homepage.old ~/env.backup ~/setup-state.backup.json
 5. 公開サイトを開き直す。古い画面が残る場合は「CDN キャッシュ削除」
 ```
 
-> **配布側の確認:** リリース用イメージを作るときは `setup` を**再ビルドしてから**エクスポートする。`docs/wsl.md` §7 の注意どおり、ビルド済み `.next` を使い回すと画面のバージョン表記だけが古いまま配布される。
+> **配布側の確認:** リリース用イメージを作るときは `setup` を**再ビルドしてから**エクスポートする。`docs/wsl.md` §6 の注意どおり、ビルド済み `.next` を使い回すと画面のバージョン表記だけが古いまま配布される。

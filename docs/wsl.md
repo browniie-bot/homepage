@@ -221,39 +221,21 @@ cd ~/homepage
 curl -L https://github.com/okamoto53515606/homepage/archive/refs/heads/main.tar.gz \
   | tar -xz --strip-components=1
 
-# why: 配布イメージサイズ削減 & ユーザーが触る必要のないファイルを除く
-rm -rf docs prompt_history test scripts
+# why: 配布イメージサイズ削減 & ユーザーが触る必要のないファイルを除く。
+#      docs/ は利用者向けの手順書（更新方法・WSL+VSCode での開発方法）を配るため残す。
+rm -rf prompt_history test scripts
 
 cp env_template.txt .env
 ```
 
 > **注意:** 初回のイメージ作成だけはこの手動コマンドが必要（取得スクリプトはリポジトリの中にあるため、まだ手元に無い）。
 > 2 回目以降は [setup/scripts/fetch-app.sh](../setup/scripts/fetch-app.sh) が同じ処理を行う。
-> `bash ~/homepage/setup/scripts/fetch-app.sh --fresh --dist` で §5（取得・不要ファイル除去・`.env` 作成）と §7（依存インストール・ビルド・prune）を 1 コマンドで実行できる。
+> `bash ~/homepage/setup/scripts/fetch-app.sh --fresh --dist` で §5（取得・不要ファイル除去・`.env` 作成）と §6（依存インストール・ビルド・prune）を 1 コマンドで実行できる。
 > `--fresh` は `.env` を `env_template.txt` から作り直すため、**AWS キー等を入力済みの環境では使わない**（その場合は `--update`）。
 
 ---
 
-## 6. 環境チェック (WSL)
-
-すべてバージョンが出ること、Docker daemon が OK であることを確認。
-
-```bash
-echo "=== versions ===" && \
-node -v && npm -v && \
-aws --version && \
-docker --version && (docker info >/dev/null 2>&1 && echo "docker daemon: OK" || echo "docker daemon: NG") ; \
-git --version && \
-make --version | head -1 && \
-gcc --version | head -1 && \
-python3 --version && \
-curl --version | head -1 && \
-unzip -v | head -1
-```
-
----
-
-## 7. 依存インストール & ビルド (WSL)
+## 6. 依存インストール & ビルド (WSL)
 
 > **why:** 配布後の初回起動を高速化するため、`npm install` と setup の `next build` を配布側で済ませて `node_modules` / `.next` ごとイメージに固める。  
 > ルート (`~/homepage`) は CDK 用依存だけが必要 (`aws-cdk-lib`, `@types/node` 等)。Next.js 本体の build はランタイムでは Lambda コンテナビルド経由で行うため不要。
@@ -283,21 +265,16 @@ npm prune --production
 
 ---
 
-## 8. 起動スクリプト配置 (WSL)
+## 7. 起動スクリプト (WSL)
+
+`setup/start.sh` はリポジトリに含まれているため、生成作業は不要。実行ビットだけ確認する。
 
 ```bash
-cat > ~/homepage/setup/start.sh <<'EOF'
-#!/usr/bin/env bash
-# why: WSL2 の DNS 設定が不正な状態になると、git pull や AWS API 呼び出しが失敗することがあります。DNS を 8.8.8.8 に書き換えます。
-echo 'nameserver 8.8.8.8' | sudo tee /etc/resolv.conf
-# why: dev (Turbopack) は初回コンパイルが重く、低スペック環境で固まりやすい。
-#      build 済み成果物を next start で配信することで起動を一瞬にする。
-source ~/.bashrc
-cd ~/homepage/setup
-npm run start
-EOF
-chmod +x ~/homepage/setup/start.sh
+ls -l ~/homepage/setup/start.sh    # -rwxr-xr-x になっていること
+chmod +x ~/homepage/setup/start.sh # 付いていなければ付与（通常は tar がモードを保持するので不要）
 ```
+
+> **why:** 以前はこの手順でヒアドキュメントから `start.sh` を生成していたが、`/home/ubuntu` 固定の内容になり、開発サンドボックスなど別の配置では動かなかった。スクリプトは `BASH_SOURCE` から自分の位置を解決する実装をリポジトリ側に置いたため、手順は「生成」ではなく「実行ビットの確認」だけにした。
 
 WSL を抜ける:
 
@@ -307,7 +284,7 @@ exit
 
 ---
 
-## 9. 起動テスト (Windows)
+## 8. 起動テスト (Windows)
 
 PowerShell から:
 
@@ -319,7 +296,7 @@ wsl -d Ubuntu -u ubuntu -- bash -i /home/ubuntu/homepage/setup/start.sh
 
 ---
 
-## 10. WSL イメージのエクスポート (Windows)
+## 9. WSL イメージのエクスポート (Windows)
 
 ```powershell
 d:
@@ -331,7 +308,7 @@ wsl --export Ubuntu homepage-v2-latest.tar
 
 ---
 
-## 11. 圧縮 + ハッシュ算出 (WSL)
+## 10. 圧縮 + ハッシュ算出 (WSL)
 
 ```bash
 # why: pigz は gzip のマルチコア版。出力は gzip 完全互換で、
@@ -349,7 +326,7 @@ ls -l --si
 
 ---
 
-## 12. GitHub Release 作成 (Windows)
+## 11. GitHub Release 作成 (Windows)
 
 初回のみ `gh` CLI 導入と認証:
 
