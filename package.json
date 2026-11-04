@@ -52,7 +52,7 @@
     "not dead"
   ],
   "devDependencies": {
-    "@aws-sdk/client-s3": "^3.1154.0",
+    "@aws-sdk/client-s3": "^3.1161.0",
     "@aws-sdk/client-secrets-manager": "^3.1154.0",
     "@eslint/eslintrc": "^3.3.7",
     "@types/node": "^24",
