@@ -178,3 +178,51 @@ server: CloudFront        # 旧: AmazonS3
 $ curl -I https://test.okamomedia.tokyo/         | grep -i '^server:'
 server: CloudFront        # Lambda Function URL 由来も同様に上書き
 ```
+
+## 2026/11/04 定期スキャン（第四弾: ベースライン維持の確認と `unsafe-eval` 除去）
+
+**why（背景）:** 2026/10/30 の ECR イメージ失効で一度全ページ 502 になった後、10/31 に環境を作り直している。構成変更（再デプロイ・独自ドメイン再設定）がセキュリティヘッダや認証ゲートを巻き戻していないかを確認するため、API Scan → Full Scan を未認証（`SESSION_JWT` なし）で再実行した。
+
+### 実行前提（実機確認済み）
+| 項目 | 値 |
+| --- | --- |
+| 対象 | `https://test.okamomedia.tokyo/` |
+| ZAP | 2.17.0 (`zaproxy/zap-stable`) |
+| 認証 | 未認証（管理系は 307/401 で弾かれる想定） |
+| WAF | **未使用**（CloudFront `WebACLId` 空 / us-east-1 の CLOUDFRONT スコープ WebACL 0 件） |
+| Lambda | `homepage-app` = `Active` / `LastUpdateStatus: Successful`（ImageDeleted の再発なし） |
+| OpenAPI | `scripts/dast/openapi.yaml` と `src/app/api/**/route.ts` が 25 ルートで一致（追記不要） |
+
+### 結果サマリ
+
+| スキャン | FAIL-NEW | WARN-NEW | INFO | IGNORE | PASS | 所要 |
+| --- | --- | --- | --- | --- | --- | --- |
+| API Scan | 0 | 0 | 0 | 1 (`100001` Unexpected Content-Type ×288) | 112 | 約 9 分 |
+| Full Scan | 0 | 0 | 0 | 1 | 111 | 約 5 分 |
+
+Full Scan のレポートに残った 5 件:
+
+| Risk | Plugin | Alert | 判定 |
+| --- | --- | --- | --- |
+| Medium | 10055 | CSP: script-src unsafe-eval (×3) | **要対応 → 本コミットで除去** |
+| Medium | 10055 | CSP: script-src unsafe-inline (×3) | 受容（下記 why） |
+| Medium | 10055 | CSP: style-src unsafe-inline (×3) | 受容（下記 why） |
+| Informational | 10050 | Retrieved from Cache | 正常（CloudFront キャッシュ） |
+| Informational | 10104 | User Agent Fuzzer | 探索ノイズ |
+
+第三弾ベースラインからの差分は **なし**（90004 / Cookie 系 / HSTS / nosniff / X-Powered-By はいずれも再検出されず、`Server: CloudFront` も維持）。クロールは 68 URL（記事 13 件 + 法務ページ + 静的アセット）、API は OpenAPI 経由で 51 URL を Active Scan。
+
+### 対応: `script-src` から `'unsafe-eval'` を除去（[next.config.ts](../next.config.ts)）
+
+`unsafe-eval` の要否を一次情報で確認し、**不要**と判断して削除した。
+
+- **Next.js**: 本番ビルドは `eval` / `new Function` を出力せず、`src/` 配下にも使用箇所なし
+- **Stripe**: 公式 CSP ガイダンス（<https://docs.stripe.com/security/guide>）は `script-src` / `frame-src` / `connect-src` にホスト許可のみを列挙し、`'unsafe-eval'` を要求しない
+- **GTM**: `'unsafe-eval'` が必要なのは Custom JavaScript 変数を使う場合のみ（Custom Template なら不要）。現状 GTM は未設定で `googletagmanager.com` のスクリプトは配信 HTML に含まれない
+
+併せて、参照が無いことを確認した `https://cdn.jsdelivr.net` も許可元から削除した。回帰防止として [test/config/csp.test.ts](../test/config/csp.test.ts) を追加（`unsafe-eval` / jsdelivr の混入、`object-src` 等の防御ディレクティブ欠落、`CSP_REPORT_ONLY` のヘッダ名切替を検証）。
+
+### 受容: `'unsafe-inline'`（script-src / style-src）
+
+App Router の hydration 用インライン script（`self.__next_f.push`）と、管理画面が多用する inline `style` 属性が必須。nonce 方式は**リクエスト毎に HTML が変わる**ため、CloudFront の HTML キャッシュ（`s-maxage`）と両立しない（キャッシュされた HTML の nonce が新しいリクエストと一致しなくなり、そのリクエストの script が全ブロックされる）。hash 方式も動的な flight data には適用できない。よって `'unsafe-inline'` は構成上の制約として残す。
+
