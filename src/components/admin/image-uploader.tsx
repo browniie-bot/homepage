@@ -33,11 +33,26 @@ import {
   selectUploadableImages,
 } from '@/lib/image-upload';
 
-/** 圧縮設定（記事生成 / 記事修復で共通: 1MB・長辺 1024px） */
+/**
+ * 圧縮設定（記事生成 / 記事修復で共通: 1MB・長辺 1024px）
+ *
+ * why: `useWebWorker: false` にしている。browser-image-compression は
+ *      `useWebWorker: true` だと、ワーカー内で読み込むスクリプトの URL を
+ *      既定値 `https://cdn.jsdelivr.net/npm/browser-image-compression@<ver>/dist/
+ *      browser-image-compression.js` にして `importScripts` する。つまり
+ *      何も指定しないと**外部 CDN からコードを読み込む**ことになり、
+ *      (1) CSP で jsdelivr を許可し続ける必要が出る（攻撃面が増える）
+ *      (2) サプライチェーン上の第三者が実行コードを差し替え得る
+ *      (3) オフライン / CDN 障害時に圧縮が失敗する
+ *      という問題がある。本サイトの画像は最大 1MB・長辺 1024px に落とす前提で
+ *      1 枚あたり数百 ms 程度なので、メインスレッドで圧縮して問題ない。
+ *      （体感を優先するなら `libURL` に同一オリジンのコピーを指定する手もあるが、
+ *        配布物の追加ビルドが必要になるため採用していない）
+ */
 const COMPRESSION_OPTIONS = {
   maxSizeMB: 1,
   maxWidthOrHeight: 1024,
-  useWebWorker: true,
+  useWebWorker: false,
 };
 
 export interface ImageUploaderProps {
