@@ -43,6 +43,50 @@ Cognito 認証ゲート抜け / Stripe Webhook 署名検証バイパス 等) を
 `SESSION_JWT` 未指定で実行した場合は未ログイン状態のスキャンとなり、
 管理系エンドポイントは 401/403 が返るのみで脆弱性検出はできない。
 
+## 既知の制約: 本文付き POST/PUT はアプリまで届かない (OAC の署名検証)
+
+**why:** CloudFront OAC + Lambda Function URL (`AWS_IAM`) 構成では、リクエストに
+`x-amz-content-sha256` ヘッダが必要で、その値が**実 body の SHA-256 と一致しないと
+CloudFront がアプリ到達前に 403 を返す**。
+
+```
+{"message":"The request signature we calculated does not match the signature you provided. ..."}
+```
+
+ZAP はこのヘッダを付けない (付けられない) ため、**本文付きの POST / PUT はアプリに
+到達せず、OAC が返した 403 に対して Active Scan を実行している**。つまり
+XSS / インジェクション系のうち「POST body を攻撃対象にするテスト」は実質未実施で、
+この領域の保証は「認可が正しく 401/403 を返す」ところまでになる。
+
+### 実測 (2026/11/04)
+
+| 送信内容 | 結果 |
+| --- | --- |
+| `POST /api/admin/gemini-config` body 付き・ヘッダ無し | OAC が 403 (署名不一致) |
+| 同上 + `x-amz-content-sha256: UNSIGNED-PAYLOAD` | OAC が 403 (不一致のまま) |
+| 同上 + body の正しい SHA-256 | **アプリまで到達**し、認可で 403 (`管理者権限がありません`) |
+| body 無し (`GET` / `DELETE` クエリ) | アプリまで到達 |
+
+なお画面からの mutation は `src/lib/fetch.ts` の `fetchWithSigning()` が body の
+SHA-256 を付けるため到達する (画像アップロードは OAC の都合で FormData ではなく
+JSON + Base64: `src/lib/image-upload.ts`)。
+
+### 塞ぎ方 (未実装)
+
+1. **ZAP の httpsender スクリプト** (Graal.js) でリクエスト body の SHA-256 を計算し、
+   `x-amz-content-sha256` に設定してから送出する
+2. **ローカル署名プロキシ**を ZAP とオリジンの間に置き、`TARGET_URL` をプロキシに
+   向ける (プロキシ側でハッシュ付与 + 転送)
+
+実装する際の注意:
+
+- ZAP の Replacer ではハッシュを**計算できない**ため、上記いずれかが必要
+- ペイロードを書き換える Active Scan では、**書き換え後の body でハッシュを計算する**
+  順序にしないと結局 403 になる
+- この制約は「認可の検証」には影響しない (未認証時の 401/403 は GET/DELETE でも確認
+  できる)。判断履歴は [docs/20260503_dast-zap-initial-scan.md](../../docs/20260503_dast-zap-initial-scan.md)
+  の「未認証アクセス検証」を参照
+
 ## レポート出力先
 
 `zap-reports/` (リポジトリルート、`.gitignore` 済み)
