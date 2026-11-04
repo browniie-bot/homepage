@@ -235,6 +235,35 @@ Full Scan のレポートに残った 5 件:
 
 再スキャン後に残るのは `CSP: script-src unsafe-inline` / `CSP: style-src unsafe-inline`（各 5 インスタンス）、IGNORE 済みの `90004 Cross-Origin-*`、Informational（`10049` / `10050` / `10104`）のみで、上記の受容理由の範囲に収まっている。
 
+### 未認証アクセス検証（手動 / 認可の実効性）
+
+ZAP は未認証スキャンなので「401/403 が返るか」しか見ていない。ログイン必須領域に**未ログインで到達できないか**を実リクエストで確認した。
+
+**前提:** CloudFront OAC は body 付きリクエストで `x-amz-content-sha256` が実 body の SHA-256 と一致しないと**アプリ到達前に 403**（`The request signature we calculated does not match...`）を返す。認可を検証するには、アプリが実際に送るのと同じヘッダ（body のハッシュ）を付けて叩く必要がある。
+
+| 区分 | エンドポイント | 未認証時の応答 |
+| --- | --- | --- |
+| 管理 (`admin_session`) | `GET /api/admin/{gemini-config,google-oauth-config,stripe-config,jobs/*}` | 403 管理者権限がありません |
+| 管理 | `POST /api/admin/{gemini-config,google-oauth-config,stripe-config}` | 403 |
+| 管理 | `PUT /api/admin/settings`, `PUT /api/admin/articles/{id}` | 403 |
+| 管理 | `POST /api/admin/articles/generate`, `POST /api/admin/articles/{id}/revise` | 403 |
+| 管理 | `POST /api/admin/upload` | 403 |
+| 管理 | `DELETE /api/admin/articles?id=`, `DELETE /api/admin/comments` | 403 |
+| 画面 | `/admin`, `/admin/settings`, `/admin/articles`, `/admin/comments`, `/admin/articles/edit/*` | 307 → `/admin/login` |
+| ログイン必須 | `POST /api/articles/{slug}/comments` | 401 |
+| ログイン必須 | `POST /api/stripe/checkout` | 401 |
+| ログイン必須 | `DELETE /api/auth/withdraw` | 401 |
+| 署名必須 | `POST /api/stripe/webhook` | 400 (Missing stripe-signature header) |
+| 課金 | `GET /api/articles/{slug}/content`（有料記事） | 403 `{"canAccess":false}`（無料記事は 200） |
+| 公開 | `GET /api/auth/me` / `GET /api/stripe/config` | 200 `{"isLoggedIn":false,"role":"guest"}` / 200 |
+
+セッション偽造耐性も確認: `alg=none` の JWT、適当な鍵で署名した HS256 JWT、ゴミ文字列の `admin_session` はいずれも **403**（Cognito JWKS 検証で拒否）。未認証で到達できるのは設計上公開のエンドポイントのみ。
+
+**OAC が DAST に与える制約（重要）:** body 付き POST/PUT は正しい SHA-256 を付けない限り OAC が落とすため、**ZAP の Active Scan は本文付き POST/PUT をアプリまで届けられていない**（`403` 応答に対してテストしていた）。つまり XSS / インジェクション系の POST テストは実質未実施であり、この領域の保証は「アプリ層の 401/403 が正しく返る」ところまで。塞ぐには ZAP の httpsender スクリプトで body の SHA-256 を `x-amz-content-sha256` に載せる必要がある（Replacer では計算できない）。
+
+なお [src/lib/fetch.ts](../src/lib/fetch.ts) の FormData 分岐は `UNSIGNED-PAYLOAD` を送るが、これは OAC で 403 になるため**現状呼び出し元を作らないこと**（画像アップロードは [src/lib/image-upload.ts](../src/lib/image-upload.ts) のとおり JSON + Base64 で送っている）。
+
+
 
 ### 受容: `'unsafe-inline'`（script-src / style-src）
 
