@@ -222,6 +222,20 @@ Full Scan のレポートに残った 5 件:
 
 併せて、参照が無いことを確認した `https://cdn.jsdelivr.net` も許可元から削除した。回帰防止として [test/config/csp.test.ts](../test/config/csp.test.ts) を追加（`unsafe-eval` / jsdelivr の混入、`object-src` 等の防御ディレクティブ欠落、`CSP_REPORT_ONLY` のヘッダ名切替を検証）。
 
+### 反映と検証（test 環境）
+
+反映は ops「アプリコード更新」と同じ経路（`docker buildx build --platform linux/amd64` → ECR push → `UpdateFunctionCode`）。**BuildKit 既定の attestation 有効ビルドだと OCI index（manifest list）になり Lambda が拒否する**ため、`--provenance=false --sbom=false` で単一マニフェストにしている（`imageManifestMediaType` が `application/vnd.docker.distribution.manifest.v2+json` であることを確認済み）。ヘッダは CloudFront の HTML キャッシュに載るため、`create-invalidation --paths '/*'` まで行って配信値を切り替えた。
+
+| 検証 | 結果 |
+| --- | --- |
+| `curl -I https://test.okamomedia.tokyo/` の CSP | `script-src 'self' 'unsafe-inline' https://*.stripe.com …`（`unsafe-eval` / `cdn.jsdelivr.net` なし） |
+| 主要ページ応答 | `/` 200, `/legal/*` 200, 記事 200, `/admin` 307（従来どおり）, `/api/auth/me` 200 |
+| 実ブラウザ（Chromium）コンソール | トップ / 記事ページとも **CSP 違反・JS エラー 0 件**、hydration 動作・画像欠損なし |
+| Full Scan 再実行 | `FAIL-NEW: 0 / WARN-NEW: 0 / INFO: 0`。**`CSP: script-src unsafe-eval` は消失** |
+
+再スキャン後に残るのは `CSP: script-src unsafe-inline` / `CSP: style-src unsafe-inline`（各 5 インスタンス）、IGNORE 済みの `90004 Cross-Origin-*`、Informational（`10049` / `10050` / `10104`）のみで、上記の受容理由の範囲に収まっている。
+
+
 ### 受容: `'unsafe-inline'`（script-src / style-src）
 
 App Router の hydration 用インライン script（`self.__next_f.push`）と、管理画面が多用する inline `style` 属性が必須。nonce 方式は**リクエスト毎に HTML が変わる**ため、CloudFront の HTML キャッシュ（`s-maxage`）と両立しない（キャッシュされた HTML の nonce が新しいリクエストと一致しなくなり、そのリクエストの script が全ブロックされる）。hash 方式も動的な flight data には適用できない。よって `'unsafe-inline'` は構成上の制約として残す。
