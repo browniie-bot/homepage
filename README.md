@@ -95,6 +95,16 @@ npm run typecheck
 - 必要なもの: Node.js 24、Docker（Lambda のコンテナイメージをビルドするとき）
 - 実装ルール（`"use server"` 禁止・DELETE に body を付けない・DB 参照ページは `force-dynamic` など）と、その理由は [.github/copilot-instructions.md](.github/copilot-instructions.md) に集約しています
 
+### Node.js のバージョン方針
+
+**why:** Node.js は 2026/11/11 に 24.x 系のセキュリティ更新（v24.22.3。HTTP/2・TLS の DoS と HTTPS 経由のメモリ漏えい等、high 7 件を含む）を公開した。パッチ版を 1 つ固定すると、こうした更新を取り込むのに毎回リポジトリ修正が必要になる一方、固定しないと勝手に壊れる版が混ざるリスクがある。
+
+- **マイナー/パッチ版は固定しない。メジャーのみ固定する。**
+  - `.nvmrc` は `24`（`nvm install` / `nvm use` で 24.x の最新パッチが入る）
+  - `Dockerfile` は `node:24-alpine`、GitHub Actions は `node-version: 24`、Lambda は `NODEJS_24_X`
+- セキュリティ更新が出たら `nvm install 24 --reinstall-packages-from=24`（または `nvm install 24`）でローカルを取り込み、`docker build` し直せば本番イメージも追随する
+- 24 系の EOL は 2028-04。EOL が近づいたらメジャーを上げる（20 系は 2026-04-30 に EOL）
+
 ## 注意（事故防止）
 
 | 禁止・注意 | 理由 |
