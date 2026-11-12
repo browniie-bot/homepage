@@ -110,6 +110,9 @@ Actions は Next.js が生成する内部 POST で動き、viewer が送る `x-a
 - **setup**: `postcss` を `overrides` で 8.5.10 に固定し vulnerabilities = 0
 - **削除済み**: `genkit-cli`（ローカル AI Developer UI 用、未使用）と `src/ai/dev.ts`
 - **保持**: `ts-node` / `source-map-support` は `cdk.json` の `npx ts-node ...` 起動に必要なので残す
+- **`bundleDependencies`（同梱依存）は `overrides` で差し替えられない**。`npm ls` / `package-lock.json` の `"inBundle": true` が付いたエントリが該当する。Dependabot は同梱版もグラフに含めるため、上流が同梱版を更新するまでアラートは消えない
+  - 2026/11 実例: `aws-cdk-lib` 同梱の `minimatch` 10.2.6（GHSA-g3hv-75wg-m249）。最新 `2.276.0` の tarball 内も 10.2.6 で、`overrides` の global / nested どちらも効かない（実測）。実行経路は `cdk synth` 時の `cdk.json` 除外パターンと Aspects の glob で、パターンはリポジトリ管理＝外部入力なし → Dependabot を `tolerable_risk` で dismiss し、CDK 更新時に `npm view aws-cdk-lib dependencies.minimatch` と同梱版を確認して 11.0.1 以上になっていれば undismiss する
+  - 「一旦 dismiss した」ことを忘れないよう、判断理由は **アラートの dismissed_comment（280 文字上限）と git 履歴の両方**に残す
 
 ### GitHub Actions のバージョン指定は必ずコミット SHA で pin すること
 
