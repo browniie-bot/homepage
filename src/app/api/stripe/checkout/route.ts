@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     const stripe = await getStripeAsync();
     const session = await stripe.checkout.sessions.create({
       // 決済方法: クレジットカードのみ
-      payment_method_types: ['card'],
+      allowed_payment_method_types: ['card'],
 
       // 商品情報
       line_items: [lineItem], // 上で構築したlineItemを使用

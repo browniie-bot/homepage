@@ -69,7 +69,7 @@ export async function getStripeAsync(): Promise<Stripe> {
   // キーが変わった場合に再初期化
   if (!_stripe) {
     _stripe = new Stripe(config.secretKey, {
-      apiVersion: '2025-12-15.clover',
+      apiVersion: '2026-10-28.endive',
       typescript: true,
     });
   }
@@ -85,7 +85,7 @@ export function getStripe(): Stripe {
     const key = process.env.STRIPE_SECRET_KEY;
     if (!key) throw new Error('STRIPE_SECRET_KEY is not set');
     _stripe = new Stripe(key, {
-      apiVersion: '2025-12-15.clover',
+      apiVersion: '2026-10-28.endive',
       typescript: true,
     });
   }
