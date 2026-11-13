@@ -30,7 +30,7 @@
     "rehype-stringify": "^10.0.1",
     "remark-cjk-friendly": "^2.3.4",
     "remark-gfm": "^4.0.0",
-    "stripe": "^20.4.1",
+    "stripe": "^23.1.0",
     "tsx": "^4.23.15",
     "zod": "^4.6.7"
   },
